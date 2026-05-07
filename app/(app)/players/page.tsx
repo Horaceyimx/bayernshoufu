@@ -5,7 +5,13 @@ import { PlayersFilter } from '@/components/players-filter';
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = { q?: string; legend?: string };
+type SearchParams = {
+  q?: string;
+  legend?: string;
+  limit?: string;
+};
+
+const PAGE_SIZE = 20;
 
 export default async function PlayersPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = createClient();
@@ -15,26 +21,41 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
   } = await supabase.auth.getUser();
 
   const userId = user?.id ?? null;
-
   const query = searchParams.q?.trim();
   const legendsOnly = searchParams.legend === '1';
 
+  const currentLimit = Math.max(
+    PAGE_SIZE,
+    Number(searchParams.limit || PAGE_SIZE)
+  );
+
   let q = supabase
     .from('players')
-    .select('id, full_name, slug, photo_path, is_legend, position, shirt_number')
+    .select('id, full_name, slug, photo_path, is_legend, position, shirt_number', {
+      count: 'exact',
+    })
     .order('is_legend', { ascending: false })
     .order('full_name', { ascending: true });
 
   if (query) q = q.ilike('full_name', `%${query}%`);
   if (legendsOnly) q = q.eq('is_legend', true);
 
-  const { data: players } = await q.limit(20);
+  const { data: players, count } = await q.range(0, currentLimit - 1);
 
   const { data: favs } = userId
     ? await supabase.from('favorite_players').select('player_id').eq('user_id', userId)
     : { data: [] as { player_id: string }[] };
 
   const favSet = new Set((favs ?? []).map((f) => f.player_id));
+
+  const nextParams = new URLSearchParams();
+
+  if (query) nextParams.set('q', query);
+  if (legendsOnly) nextParams.set('legend', '1');
+
+  nextParams.set('limit', String(currentLimit + PAGE_SIZE));
+
+  const hasMore = (count ?? 0) > currentLimit;
 
   return (
     <div className="px-4 lg:px-8 py-8 max-w-7xl mx-auto">
@@ -104,6 +125,17 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
       {(players ?? []).length === 0 && (
         <div className="border border-dashed border-bayern-border py-20 text-center text-bayern-muted">
           No players match.
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="mt-10 flex justify-center">
+          <Link
+            href={`/players?${nextParams.toString()}`}
+            className="bg-bayern-red hover:bg-red-700 text-white px-8 py-3 uppercase tracking-widest text-sm font-semibold transition-colors"
+          >
+            Load More
+          </Link>
         </div>
       )}
     </div>
