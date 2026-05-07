@@ -13,6 +13,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   const userId = user?.id ?? null;
 
   const query = searchParams.q?.trim();
@@ -23,13 +24,16 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
     .select('id, full_name, slug, photo_path, is_legend, position, shirt_number')
     .order('is_legend', { ascending: false })
     .order('full_name', { ascending: true });
+
   if (query) q = q.ilike('full_name', `%${query}%`);
   if (legendsOnly) q = q.eq('is_legend', true);
-  const { data: players } = await q;
+
+  const { data: players } = await q.limit(20);
 
   const { data: favs } = userId
     ? await supabase.from('favorite_players').select('player_id').eq('user_id', userId)
     : { data: [] as { player_id: string }[] };
+
   const favSet = new Set((favs ?? []).map((f) => f.player_id));
 
   return (
@@ -38,6 +42,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
         <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tightest leading-none">
           The <span className="text-bayern-red">Players</span>
         </h1>
+
         <p className="text-bayern-muted mt-2 text-sm">
           Tap a player to see every jersey they've worn in the archive.
         </p>
@@ -58,6 +63,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
                   src={`/api/image/players/${p.id}`}
                   alt={p.full_name}
                   loading="lazy"
+                  decoding="async"
                   draggable={false}
                   data-protected
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 select-none"
@@ -67,19 +73,25 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
                   No photo
                 </div>
               )}
+
               {p.is_legend && (
                 <div className="absolute top-2 left-2 bg-bayern-red text-white p-1.5">
                   <Star size={12} fill="currentColor" />
                 </div>
               )}
+
               {favSet.has(p.id) && (
                 <div className="absolute top-2 right-2 bg-black/70 text-bayern-red p-1.5 backdrop-blur">
                   <Heart size={12} fill="currentColor" />
                 </div>
               )}
             </div>
+
             <div className="p-3">
-              <h3 className="font-semibold text-sm leading-snug line-clamp-1">{p.full_name}</h3>
+              <h3 className="font-semibold text-sm leading-snug line-clamp-1">
+                {p.full_name}
+              </h3>
+
               <p className="text-[10px] uppercase tracking-widest text-bayern-muted mt-1">
                 {p.position ?? '—'}
                 {p.shirt_number != null && <> · #{p.shirt_number}</>}
