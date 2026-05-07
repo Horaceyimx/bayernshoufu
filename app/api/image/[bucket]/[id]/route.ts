@@ -114,13 +114,55 @@ export async function GET(
     })
     .then(() => undefined);
 
-  return new NextResponse(new Uint8Array(outBuf), {
-    status: 200,
-    headers: {
-      'Content-Type': outMime,
-      'Cache-Control': 'private, no-store, max-age=0',
-      'Content-Disposition': 'inline',
-      'X-Content-Type-Options': 'nosniff',
-    },
-  });
+ if (bucket === 'players') {
+  try {
+    outBuf = await sharp(outBuf, { failOn: 'none' })
+      .resize({
+        width: 600,
+        height: 600,
+        fit: 'cover',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 78 })
+      .toBuffer();
+
+    outMime = 'image/webp';
+  } catch (e) {
+    console.error('[image] player thumbnail resize failed', {
+      id: params.id,
+      err: (e as Error).message,
+    });
+  }
+}
+
+if (bucket === 'players') {
+  try {
+    outBuf = await sharp(outBuf, { failOn: 'none' })
+      .resize({
+        width: 600,
+        height: 600,
+        fit: 'cover',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 78 })
+      .toBuffer();
+
+    outMime = 'image/webp';
+  } catch (e) {
+    console.error('[image] player thumbnail resize failed', {
+      id: params.id,
+      err: (e as Error).message,
+    });
+  }
+}
+
+return new NextResponse(new Uint8Array(outBuf), {
+  status: 200,
+  headers: {
+    'Content-Type': outMime,
+    'Cache-Control': 'private, max-age=3600',
+    'Content-Disposition': 'inline',
+    'X-Content-Type-Options': 'nosniff',
+  },
+});
 }
