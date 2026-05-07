@@ -55,7 +55,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Sear
 
   nextParams.set('limit', String(currentLimit + PAGE_SIZE));
 
-  const hasMore = (count ?? 0) > currentLimit;
+  const hasMore = (players ?? []).length === currentLimit;
 
   return (
     <div className="px-4 lg:px-8 py-8 max-w-7xl mx-auto">
